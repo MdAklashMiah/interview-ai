@@ -1,5 +1,6 @@
 const { GoogleGenAI } = require("@google/genai")
-const puppeteer = require("puppeteer")
+const puppeteer = require("puppeteer-core");
+const chromium = require("@sparticuz/chromium");
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GOOGLE_API_KEY
@@ -114,10 +115,24 @@ let browserInstance = null;
 
 async function getBrowser() {
     if (!browserInstance || !browserInstance.isConnected()) {
-        browserInstance = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-        });
+        try {
+            browserInstance = await puppeteer.launch({
+                args: chromium.args,
+                defaultViewport: chromium.defaultViewport,
+                executablePath: await chromium.executablePath(),
+                headless: chromium.headless,
+                ignoreHTTPSErrors: true,
+            });
+        } catch (error) {
+            console.error("Failed to launch Puppeteer via Chromium, falling back to local:", error);
+            // Fallback for local development if @sparticuz fails
+            // Requires regular puppeteer to be installed locally if developing outside Vercel
+            const localPuppeteer = require('puppeteer');
+            browserInstance = await localPuppeteer.launch({
+                headless: 'new',
+                args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            });
+        }
     }
     return browserInstance;
 }
